@@ -23,4 +23,4 @@ def fetch_article_content(url):
 
     soup = BeautifulSoup(response.text, 'html.parser')
     article_content = soup.find('div', {'id': 'personal-public-article-body'}).text.strip()
-    return article_content
+    return article_content[:6000]
