@@ -30,15 +30,18 @@ def main():
         retries = 0
         max_retries = 3
         while retries < max_retries:
+            introduction = "今日のQiitaトレンド"
+            limit_size = 300 - len(introduction) - len(title)
+            print (f"limit_size: {limit_size}")
             message = gpt_utils.get_description(
                 gpt_client, 
-                "この記事で何が伝えたいのか250文字以下で3行にまとめて欲しい。"
+                f"この記事で何が伝えたいのか{limit_size}文字以下で3行にまとめて欲しい。"
                 "\n回答は日本語で強調文字は使用せず簡素にする。"
-                f"\n以下に記事の内容を記載する。\n\n{body_text}"
+                f"\n以下に記事の内容を記載する。\n\n{body_text}",
+                limit_size
             )
-            embed_title, description, image_url = bluesky_utils.fetch_webpage_metadata(full_url)
             post_text = bluesky_utils.format_message_with_link(
-                title, full_url, "今日のQiitaトレンド", message
+                title, full_url, introduction, message
             )
 
             if len(post_text.build_text()) < 300:
@@ -51,6 +54,7 @@ def main():
             print("300文字以内の文字を生成できませんでした。")
             continue
 
+        embed_title, description, image_url = bluesky_utils.fetch_webpage_metadata(full_url)
         print(post_text.build_text(), image_url, sep="\n")
 
         bluesky_utils.authenticate(bs_client, user_handle, user_password)
