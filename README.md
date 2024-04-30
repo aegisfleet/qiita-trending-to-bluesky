@@ -3,6 +3,10 @@
 Qiita Trending to Blueskyは、[Qiita](https://qiita.com/)におけるトレンド記事を自動的に要約し、Blueskyに投稿するアプリケーションです。  
 このアプリケーションは、技術者コミュニティにおける最新のトレンドや話題を迅速にキャッチアップするために開発されました。
 
+## 関連記事
+
+- [Webスクレイピング×生成AI×SNSで新しい価値が生まれる？すべて無料でBOTを作った話](https://note.com/aegisfleet/n/nc8362f717cd9)
+
 ## 特徴
 
 - Qiitaのトレンド記事を検出
