@@ -1,6 +1,5 @@
 import sys
 from atproto import Client as BSClient
-from g4f.client import Client as GPTClient
 import bluesky_utils
 import gpt_utils
 import qiita_utils
@@ -13,17 +12,17 @@ config = {
 }
 
 def print_usage_and_exit():
-    print("使用法: python main.py <ユーザーハンドル> <パスワード>")
+    print("使用法: python main.py <BlueSkyのユーザーハンドル> <BlueSkyのパスワード> <GeminiのAPIキー>")
     sys.exit(1)
 
-def generate_post_text(gpt_client, full_url, title, content, introduction):
+def generate_post_text(api_key, full_url, title, content, introduction):
     retries = 0
     max_retries = 3
     while retries < max_retries:
         limit_size = 300 - len(introduction) - len(title)
         print(f"limit_size: {limit_size}")
         message = gpt_utils.get_description(
-            gpt_client,
+            api_key,
             f"この記事で何が伝えたいのか{limit_size}文字以下で3行にまとめて欲しい。"
             "\n回答は日本語で強調文字は使用せず簡素にする。"
             f"\n以下に記事の内容を記載する。\n\n{content}",
@@ -41,21 +40,20 @@ def generate_post_text(gpt_client, full_url, title, content, introduction):
     return None
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print_usage_and_exit()
 
-    user_handle, user_password = sys.argv[1], sys.argv[2]
+    user_handle, user_password, api_key = sys.argv[1], sys.argv[2], sys.argv[3]
 
     targets = getattr(config["utils_module"], config["trending_function"])()
 
-    gpt_client = GPTClient()
     bs_client = BSClient()
 
     for full_url, title in targets:
         print(f"\nURL: {full_url}\nTitle: {title}")
 
         content = getattr(config["utils_module"], config["content_function"])(full_url)
-        post_text = generate_post_text(gpt_client, full_url, title, content, config["introduction"])
+        post_text = generate_post_text(api_key, full_url, title, content, config["introduction"])
         if not post_text:
             continue
 
