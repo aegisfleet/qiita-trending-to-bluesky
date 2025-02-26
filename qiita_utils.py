@@ -9,7 +9,7 @@ def fetch_trending_articles(url: str = "https://qiita.com/popular-items/feed", c
     previous_articles = artifact_utils.load_previous_results()
 
     articles = []
-    
+
     response = requests.get(url)
     root = ET.fromstring(response.content)
 
@@ -20,7 +20,7 @@ def fetch_trending_articles(url: str = "https://qiita.com/popular-items/feed", c
             break
         link_element = entry.find('atom:link[@rel="alternate"]', namespaces)
         title_element = entry.find('atom:title', namespaces)
-        
+
         if link_element is not None and title_element is not None:
             link = link_element.get('href')
             title = title_element.text
