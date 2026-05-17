@@ -40,22 +40,26 @@ def parse_html_for_metadata(html_content):
 def _resolve_pds_endpoint(handle):
     """ハンドルからPDSエンドポイントを解決する。
 
-    1. DNS TXTレコード(_atproto.{handle})でDIDを取得
-    2. plc.directoryでDIDドキュメントを取得しPDSエンドポイントを抽出
+    1. デフォルトドメイン以外の場合、DNS TXTレコード(_atproto.{handle})でDIDを取得
+    2. フォールバックとして HTTPS 経由で well-known からDIDを取得
+    3. plc.directoryでDIDドキュメントを取得しPDSエンドポイントを抽出
     """
-    import dns.resolver
     did = None
-    try:
-        # DNS TXTレコードからDIDを解決
-        txt_name = f"_atproto.{handle}"
-        answers = dns.resolver.resolve(txt_name, "TXT")
-        for rdata in answers:
-            txt_value = rdata.strings[0].decode("utf-8")
-            if txt_value.startswith("did="):
-                did = txt_value[4:]
-                break
-    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.Timeout, dns.resolver.NoNameservers) as e:
-        print(f"DNS解決に失敗した: {e}")
+    
+    # ハンドルが .bsky.social で終わる場合はDNS解決をスキップ（TXTレコードが存在しないため）
+    if not handle.endswith(".bsky.social"):
+        try:
+            import dns.resolver
+            txt_name = f"_atproto.{handle}"
+            answers = dns.resolver.resolve(txt_name, "TXT")
+            for rdata in answers:
+                txt_value = rdata.strings[0].decode("utf-8")
+                if txt_value.startswith("did="):
+                    did = txt_value[4:]
+                    break
+        except Exception:
+            # DNS解決に失敗した場合は無言でフォールバックへ進む
+            pass
 
     if not did:
         # フォールバック: HTTPS経由でwell-knownからDIDを解決
@@ -64,9 +68,7 @@ def _resolve_pds_endpoint(handle):
             resp = requests.get(well_known_url, timeout=10)
             resp.raise_for_status()
             did = resp.text.strip()
-            print(f"well-known経由でDIDを解決した: {did}")
-        except Exception as e2:
-            print(f"DIDの解決に失敗した (well-known): {e2}")
+        except Exception:
             return None
 
     # plc.directoryでPDSエンドポイントを取得
@@ -78,13 +80,11 @@ def _resolve_pds_endpoint(handle):
         services = did_doc.get("service", [])
         for svc in services:
             if svc.get("type") == "AtprotoPersonalDataServer":
-                pds_url = svc.get("serviceEndpoint")
-                print(f"PDSエンドポイントを取得した: {pds_url}")
-                return pds_url
-        print("DIDドキュメントにPDSエンドポイントが見つからなかった")
-    except Exception as e:
-        print(f"PLC directory of {did} に問い合わせ失敗: {e}")
+                return svc.get("serviceEndpoint")
+    except Exception:
         return None
+
+    return None
 
 def _try_login(client, username, password, retries=3, wait_time=5, label=""):
     """指定クライアントでログインを試行し、成功時にクライアントを返す。失敗時はNone。"""
@@ -113,7 +113,6 @@ def authenticate(bs_client, username, password, retries=3, wait_time=5):
     まずハンドル名からPDSエンドポイントを解決し、PDS直接接続を試行する（PDSファースト）。
     PDSの解決または接続に失敗した場合は、デフォルトエンドポイント（bsky.social）への接続にフォールバックする。
     """
-    print("PDS直接接続のため、エンドポイントの解決を試行中...")
     pds_url = _resolve_pds_endpoint(username)
     
     if pds_url:
@@ -123,9 +122,9 @@ def authenticate(bs_client, username, password, retries=3, wait_time=5):
         result = _try_login(pds_client, username, password, retries, wait_time, label="PDS直接接続 ")
         if result:
             return result
-        print("PDS直接接続に失敗した。デフォルトエンドポイントへの接続を試行する...")
+        print("PDS直接接続に失敗したため、デフォルトエンドポイントへの接続を試行する...")
     else:
-        print("PDSエンドポイントの解決に失敗した。デフォルトエンドポイントへの接続を試行する...")
+        print("PDSエンドポイントの解決に失敗したため、デフォルトエンドポイントへの接続を試行する...")
 
     # フォールバック: デフォルトエンドポイント(bsky.social)で試行
     result = _try_login(bs_client, username, password, retries, wait_time, label="デフォルトエンドポイント ")
